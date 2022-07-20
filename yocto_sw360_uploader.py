@@ -84,6 +84,18 @@ def _create_component(sw360_client, component_name, description='',
 
     return _parse_id(component_url), releases
 
+def _get_license(sw360_client, short_name):
+    try:
+        return sw360_client.get_license(short_name)
+    except:
+        return None
+
+def _find_license(licenses, target):
+    for lic in licenses:
+        if lic['shortName'] == target['shortName']:
+            return True
+    return False
+
 def _find_release_version(releases, version):
     for r in releases:
         if r['version'] == version:
@@ -117,6 +129,14 @@ def _add_release(sw360_client, component_id, component_name, version,
                #'additionalData':,
                #'languages': [],
                #'_embedded': {'sw360:licenses': []}}
+    if license:
+        license_exists = _get_license(license)
+        if license_exists:
+            if '_embedded' not in update_release or 'sw360:licenses' not in update_release['_embedded']:
+                update_release['_embedded'] = {'sw360:licenses': []}
+            if _find_license(update_releases['_embedded']['sw360:licenses'], license):
+                update_releases['_embedded']['sw360:licenses'].append(license_exists)
+
     resp = sw360_client.update_release(update_release, release_id)
     if not resp:
         return None
