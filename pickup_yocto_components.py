@@ -3,6 +3,7 @@
 
 import os
 import glob
+import yocto_spdx
 
 def _parse_manifest(manifest):
     ret = []
@@ -58,6 +59,11 @@ def pickup_yocto_components(deploy_path="tmp/deploy", machine="qemux86-64", imag
     if not os.path.isdir(package_path):
         raise NameError
 
+    try:
+        ns = yocto_spdx.yocto_spdx_namespace(deploy_path, [machine])
+    except:
+        ns = None
+
     # find packages from manifest
     for name, arch, ver in _each_manifests(manifest):
         package_name = name + '-' + ver + '*.' + arch + '.' + package_type
@@ -76,6 +82,29 @@ def pickup_yocto_components(deploy_path="tmp/deploy", machine="qemux86-64", imag
             lic_pkg = _find_lic_pkg(name, pkg_dir)
             if lic_pkg:
                 ret['license_path'] = lic_pkg[0]
+
+        if ns:
+            spdx_path = ns.find_spdx_in_packages(name)
+            if spdx_path:
+                spdx = ns.import_single_spdx_with_refs(spdx_path)
+                if spdx:
+                    pkginfo = spdx['packages'][0]
+                    ret['license'] = pkginfo['licenseDeclared']
+
+                    pkg_ns = spdx['documentNamespace']
+                    if pkg_ns in ns.generated_ref:
+                        ref_spdx = ns.namespace[ns.generated_ref[pkg_ns]]
+                        ref_pkginfo = ref_spdx['packages'][0]
+                        ret['recipe'] = ref_pkginfo['name']
+                        if 'description' in ref_pkginfo:
+                            ret['description'] = ref_pkginfo['description']
+                        if 'homepage' in ref_pkginfo:
+                            ret['homepage'] = ref_pkginfo['homepage']
+                        if 'downloadLocation' in ref_pkginfo and ref_pkginfo['downloadLocation'] != 'NOASSERTION':
+                            ret['downloadURL'] = ref_pkginfo['downloadLocation']
+                        if 'externalRefs' in ref_pkginfo and ref_pkginfo['externalRefs'][0]['referenceCategory'] == 'SECURITY':
+                            ret['CPE-ID'] = ref_pkginfo['externalRefs'][0]['referenceLocator']
+                        ret['recipeLicense'] = ref_pkginfo['licenseDeclared']
 
         yield ret
 

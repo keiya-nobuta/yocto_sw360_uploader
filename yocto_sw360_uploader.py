@@ -49,6 +49,9 @@ def _create_component(sw360_client, component_name, description='',
                       component_type='OSS', homepage=''):
     resp = sw360_client.get_component_by_name(component_name)
     releases = []
+
+    component_url = None
+
     if resp and '_embedded' in resp and 'sw360:components' in resp['_embedded']:
         components = resp['_embedded']['sw360:components']
         for _component in components:
@@ -71,7 +74,7 @@ def _create_component(sw360_client, component_name, description='',
         if '_embedded' in resp and 'sw360:releases' in resp['_embedded']:
             releases = resp['_embedded']['sw360:releases']
 
-    else:
+    if not component_url:
         resp = sw360_client.create_new_component(component_name, description,
                                                  component_type, homepage)
         if not resp:
@@ -87,7 +90,8 @@ def _find_release_version(releases, version):
             return r
     return None
 
-def _add_release(sw360_client, component_id, component_name, version, release=None):
+def _add_release(sw360_client, component_id, component_name, version,
+                 cpe_id='', downloadURL='', license='', release=None):
     if not release:
         release = sw360_client.create_new_release(name, version, component_id)
         if not release:
@@ -99,6 +103,10 @@ def _add_release(sw360_client, component_id, component_name, version, release=No
     update_release = release.copy()
     update_release['releaseDate'] = datetime.datetime.today().strftime('%Y-%m-%d')
     update_release['operatingSystems'] = ['Linux',]
+    if cpe_id:
+        update_release['cpeId'] = cpe_id
+    if downloadURL:
+        update_release['sourceCodeDownloadurl'] = dwonloadURL
                #'createdBy': , # for example `git config user.email`
                #'cpeId':,
                #'clearingState': 'NEW_CLEARING',
@@ -149,14 +157,20 @@ if __name__ == "__main__":
         component_name = _convert_component_name(name)
         src = component.get('src_path')
 
-        resp = _create_component(sw360_client, component_name)
+        resp = _create_component(sw360_client, component_name,
+                                 description = component.get('description'),
+                                 homepage = component.get('homepage'))
         if not resp:
             raise ValueError
 
         component_id, releases = resp
         release = _find_release_version(releases, version)
 
-        release_id = _add_release(sw360_client, component_id, component_name, version, release)
+        release_id = _add_release(sw360_client, component_id, component_name, version,
+                                  cpe_id = component.get('CPE-ID'),
+                                  downloadURL = component.get('downloadLocation'),
+                                  license = component.get('license'),
+                                  release=release)
         if not release_id:
             raise ValueError
 
