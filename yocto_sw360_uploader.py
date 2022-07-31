@@ -24,18 +24,22 @@ def _convert_component_name(name):
 def _parse_id(url):
     return urllib.parse.urlsplit(url).path.split('/')[-1]
 
-def _create_project(sw360_client, project_name, project_ver):
+def _create_project(sw360_client, project_name, project_ver, project_type='PRODUCT', visibility='BUISNESSUNIT_AND_MODERATORS'):
     resp = sw360_client.get_projects_by_name(project_name)
 
     if not resp:
-        project = sw360_client.create_new_project(name=project_name,
-                                                  version=project_ver)
+        project = sw360_client.create_new_project(project_name,
+                                                  project_type,
+                                                  visibility,
+                                                  version=project_ver,)
         if not project:
             return None
     else:
         resp = [p for p in resp if p['version'] == project_ver]
         if not resp:
-            project = sw360_client.create_new_project(name=project_name,
+            project = sw360_client.create_new_project(project_name,
+                                                      project_type,
+                                                      visibilit,
                                                       version=project_ver)
             if not project:
                 return None
