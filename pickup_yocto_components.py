@@ -4,6 +4,7 @@
 import os
 import glob
 import yocto_spdx
+import nvd_cpe_detector
 
 def _parse_manifest(manifest):
     ret = []
@@ -103,7 +104,12 @@ def pickup_yocto_components(deploy_path="tmp/deploy", machine="qemux86-64", imag
                         if 'downloadLocation' in ref_pkginfo and ref_pkginfo['downloadLocation'] != 'NOASSERTION':
                             ret['downloadURL'] = ref_pkginfo['downloadLocation']
                         if 'externalRefs' in ref_pkginfo and ref_pkginfo['externalRefs'][0]['referenceCategory'] == 'SECURITY':
-                            ret['CPE-ID'] = ref_pkginfo['externalRefs'][0]['referenceLocator']
+                            cpe = ref_pkginfo['externalRefs'][0]['referenceLocator']
+                            try:
+                                cpe = nvd_cpe_detector.replace_vendor(cpe, ret['homepage'], ret['downloadURL'])
+                            except:
+                                pass
+                            ret['CPE-ID'] = cpe
                         ret['recipeLicense'] = ref_pkginfo['licenseDeclared']
 
         yield ret
